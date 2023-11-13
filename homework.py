@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from typing import Callable, ClassVar, Union
+from dataclasses import asdict, dataclass
+from typing import ClassVar, Union
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class InfoMessage:
     """Информационное сообщение о тренировке."""
 
@@ -12,16 +12,19 @@ class InfoMessage:
     speed: float
     calories: float
 
+    MESSAGE_TEMPLATE: str = (
+        'Тип тренировки: {training_type}; '
+        'Длительность: {duration:.3f} ч.; '
+        'Дистанция: {distance:.3f} км; '
+        'Ср. скорость: {speed:.3f} км/ч; '
+        'Потрачено ккал: {calories:.3f}.')
+
     def get_message(self) -> str:
-        '''Вернуть сообщение с показателями тренировки '''
-        return (f'Тип тренировки: {self.training_type}; '
-                f'Длительность: {self.duration:.3f} ч.; '
-                f'Дистанция: {self.distance:.3f} км; '
-                f'Ср. скорость: {self.speed:.3f} км/ч; '
-                f'Потрачено ккал: {self.calories:.3f}.')
+        """Вернуть сообщение с показателями тренировки."""
+        return self.MESSAGE_TEMPLATE.format(**(asdict(self)))
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class Training:
     """Базовый класс тренировки."""
 
@@ -43,7 +46,7 @@ class Training:
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
         raise NotImplementedError('Определите метод расчета затраченных '
-                                  f'калорий для {(self.__class__.__name__)}')
+                                  f'калорий для {(type(self).__name__)}')
 
     def show_training_info(self) -> InfoMessage:
         """Вернуть информационное сообщение о выполненной тренировке."""
@@ -55,7 +58,7 @@ class Training:
                            )
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class Running(Training):
     """Тренировка: бег."""
 
@@ -64,12 +67,12 @@ class Running(Training):
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        return ((self.CALORIES_MEAN_SPEED_MULTIPLIER * super().get_mean_speed()
+        return ((self.CALORIES_MEAN_SPEED_MULTIPLIER * self.get_mean_speed()
                 + self.CALORIES_MEAN_SPEED_SHIFT) * self.weight
                 / self.M_IN_KM * (self.duration * self.M_IN_H))
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
 
@@ -81,14 +84,14 @@ class SportsWalking(Training):
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        mean_speed_mps: float = super().get_mean_speed() * self.KMH_IN_MSEC
         return ((self.CALORIES_WEIGHT_MULTIPLIER * self.weight
-                + (mean_speed_mps**2 / (self.height / self.CM_IN_M))
+                + ((self.get_mean_speed() * self.KMH_IN_MSEC)**2
+                    / (self.height / self.CM_IN_M))
                 * self.CALORIES_SPEED_HEIGHT_MULTIPLIER * self.weight)
                 * (self.duration * self.M_IN_H))
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class Swimming(Training):
     """Тренировка: плавание."""
 
@@ -110,9 +113,9 @@ class Swimming(Training):
                 * self.weight * self.duration)
 
 
-CODE_TRAINING: dict[str, Callable] = {'SWM': Swimming,
-                                      'RUN': Running,
-                                      'WLK': SportsWalking}
+CODE_TRAINING: dict[str, type[Training]] = {'SWM': Swimming,
+                                            'RUN': Running,
+                                            'WLK': SportsWalking}
 
 
 def read_package(workout_type: str, data: list) -> Training:
